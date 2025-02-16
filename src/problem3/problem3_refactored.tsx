@@ -1,0 +1,89 @@
+
+
+import { usePrices } from './path-to-usePrices'; // Add the correct path to usePrices
+import { useWalletBalances } from './path-to-useWalletBalances'; // Add the correct path to useWalletBalances
+import { useMemo } from 'react'; // import useMemo from react
+
+type Blockchain = 'Osmosis' | 'Ethereum' | 'Arbitrum' | 'Zilliqa' | 'Neo'; // Add Blockchain type
+
+interface WalletBalance {
+    currency: string;
+    amount: number;
+    blockchain: Blockchain; // Add missing blockchain property
+  }
+  interface FormattedWalletBalance {
+    currency: string;
+    amount: number;
+    formatted: string;
+  }
+  
+  interface Props extends BoxProps {
+    children?: React.ReactNode; // Add missing children property
+  }
+  const WalletPage: React.FC<Props> = (props: Props) => {
+    const { children, ...rest } = props;
+    const balances = useWalletBalances();
+    const prices = usePrices();
+      const getPriority = (blockchain: Blockchain): number => {
+        switch (blockchain) {
+          case 'Osmosis':
+            return 100
+          case 'Ethereum':
+            return 50
+          case 'Arbitrum':
+            return 30
+          case 'Zilliqa':
+            return 20
+          case 'Neo':
+            return 20
+          default:
+            return -99
+        }
+      }
+  
+    const sortedBalances = useMemo(() => {
+      return balances.filter((balance: WalletBalance) => {
+            const balancePriority = getPriority(balance.blockchain);
+            if (balancePriority > -99) { // Fix typo lhsPriority to balancePriority
+               if (balance.amount <= 0) {
+                 return true;
+               }
+            }
+            return false
+          }).sort((lhs: WalletBalance, rhs: WalletBalance) => {
+            const leftPriority = getPriority(lhs.blockchain);
+            const rightPriority = getPriority(rhs.blockchain);
+            if (leftPriority > rightPriority) {
+              return -1;
+            } else if (rightPriority > leftPriority) {
+              return 1;
+            }
+      });
+    }, [balances, prices]);
+  
+    const formattedBalances = sortedBalances.map((balance: WalletBalance) => {
+      return {
+        ...balance,
+        formatted: balance.amount.toFixed(6) // Fix toFixed to 6 decimal places, some currencies may have more than 2 decimal places.
+      }
+    })
+  
+    const rows = sortedBalances.map((balance: FormattedWalletBalance, index: number) => {
+      const usdValue = prices[balance.currency] * balance.amount;
+      return (
+        <WalletRow 
+          className={classes.row}
+          key={index}
+          amount={balance.amount}
+          usdValue={usdValue}
+          formattedAmount={balance.formatted}
+        />
+      )
+    })
+  
+    return (
+      <div {...rest}>
+        {rows}
+      </div>
+    )
+  }
